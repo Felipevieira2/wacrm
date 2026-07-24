@@ -200,13 +200,24 @@ function InboxPageInner() {
         return;
       }
 
-      const { data } = await supabase
-        .from("whatsapp_config")
-        .select("status")
-        .eq("account_id", accountId)
-        .maybeSingle();
+      const [waRes, uazapiRes] = await Promise.all([
+        supabase
+          .from("whatsapp_config")
+          .select("status")
+          .eq("account_id", accountId)
+          .maybeSingle(),
+        supabase
+          .from("uazapi_config")
+          .select("status")
+          .eq("account_id", accountId)
+          .maybeSingle(),
+      ]);
 
-      setWhatsappConnected(data?.status === "connected");
+      const isWaConnected = waRes.data?.status === "connected";
+      const isUazapiConnected =
+        uazapiRes.data?.status === "connected" || uazapiRes.data?.status === "connecting";
+
+      setWhatsappConnected(isWaConnected || isUazapiConnected);
     };
 
     checkConnection();

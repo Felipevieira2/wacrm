@@ -54,7 +54,7 @@ export function ConversationList({
   resyncToken = 0,
 }: ConversationListProps) {
   const t = useTranslations("Inbox.conversationList");
-  
+
   const FILTER_OPTIONS: { label: string; value: InboxFilter }[] = useMemo(() => [
     { label: t("filterAll"), value: "all" },
     { label: t("filterUnread"), value: "unread" },
@@ -239,8 +239,8 @@ export function ConversationList({
         <div className="flex flex-wrap items-center gap-1">
           <DropdownMenu>
             <DropdownMenuTrigger className="inline-flex items-center justify-center h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-muted">
-                {activeFilter?.label ?? t("filterAll")}
-                <ChevronDown className="h-3 w-3" />
+              {activeFilter?.label ?? t("filterAll")}
+              <ChevronDown className="h-3 w-3" />
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="start"
@@ -446,8 +446,8 @@ function ConversationItem({
 
   const timeAgo = conversation.last_message_at
     ? formatDistanceToNow(new Date(conversation.last_message_at), {
-        addSuffix: false,
-      })
+      addSuffix: false,
+    })
     : "";
 
   return (

@@ -40,7 +40,7 @@ export function SettingsOverview({
     useAuth();
   const { mode, theme } = useTheme();
   const t = useTranslations('Settings.overview');
-  const tRoles = useTranslations('roles');
+  const tRoles = useTranslations('Settings.roles');
   const tSections = useTranslations('Settings.sections');
 
   const [counts, setCounts] = useState<OverviewCounts | null>(null);
@@ -117,21 +117,32 @@ export function SettingsOverview({
       setCountsLoading(false);
     })();
 
-    // WhatsApp connection status — slower, independent.
+    // WhatsApp / Uazapi connection status — slower, independent.
     (async () => {
       setWhatsappLoading(true);
-      const [row, health] = await Promise.allSettled([
+      const [row, uazapiRow, health] = await Promise.allSettled([
         supabase
           .from('whatsapp_config')
           .select('phone_number_id')
           .eq('account_id', acctId)
           .maybeSingle(),
+        supabase
+          .from('uazapi_config')
+          .select('status')
+          .eq('account_id', acctId)
+          .maybeSingle(),
         fetch('/api/whatsapp/config', { cache: 'no-store' }).then((r) => r.json()),
       ]);
       if (cancelled) return;
+
+      const uazapiStatus = uazapiRow.status === 'fulfilled' ? uazapiRow.value.data?.status : null;
+      const isUazapiConnected = uazapiStatus === 'connected' || uazapiStatus === 'connecting';
+      const isWaConfigured = row.status === 'fulfilled' && !!row.value.data?.phone_number_id;
+      const isWaConnected = health.status === 'fulfilled' && !!health.value?.connected;
+
       setWhatsapp({
-        configured: row.status === 'fulfilled' && !!row.value.data?.phone_number_id,
-        connected: health.status === 'fulfilled' && !!health.value?.connected,
+        configured: isWaConfigured || !!uazapiStatus,
+        connected: isWaConnected || isUazapiConnected,
       });
       setWhatsappLoading(false);
     })();
