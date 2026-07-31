@@ -21,6 +21,7 @@ interface MessageActionsProps {
   onReply: () => void;
   onReact: (emoji: string) => void;
   children: ReactNode;
+  "data-message-id"?: string;
 }
 
 /**
@@ -33,6 +34,7 @@ export function MessageActions({
   onReply,
   onReact,
   children,
+  "data-message-id": dataMessageId,
 }: MessageActionsProps) {
   const t = useTranslations("Inbox.actions");
 
@@ -81,6 +83,7 @@ export function MessageActions({
   // in the row no longer reveals the toolbar.
   return (
     <div
+      data-message-id={dataMessageId ?? message.id}
       className={cn(
         "flex w-full",
         isAgent ? "justify-end" : "justify-start",

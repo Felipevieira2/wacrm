@@ -16,6 +16,7 @@ import {
   isRecipientNotAllowedError,
 } from '@/lib/whatsapp/phone-utils'
 import { supabaseAdmin } from './admin-client'
+import { sendUazapiMessage } from '@/lib/uazapi/send-message'
 
 // ------------------------------------------------------------
 // Flows-side Meta sender (interactive variants).
@@ -66,6 +67,22 @@ export async function engineSendText(
   args: SendTextEngineArgs,
 ): Promise<{ whatsapp_message_id: string }> {
   const db = supabaseAdmin()
+
+  // ── Transport detection ────────────────────────────────────────────
+  const { data: uazapiCheck } = await db
+    .from('uazapi_config')
+    .select('id')
+    .eq('account_id', args.accountId)
+    .maybeSingle()
+  if (uazapiCheck) {
+    const result = await sendUazapiMessage(db, args.accountId, {
+      conversationId: args.conversationId,
+      messageType: 'text',
+      contentText: args.text,
+    })
+    return { whatsapp_message_id: result.whatsappMessageId }
+  }
+  // ───────────────────────────────────────────────────────────────
 
   const { data: contact, error: contactErr } = await db
     .from('contacts')
@@ -176,6 +193,24 @@ export async function engineSendMedia(
   args: SendMediaEngineArgs,
 ): Promise<{ whatsapp_message_id: string }> {
   const db = supabaseAdmin()
+
+  // ── Transport detection ────────────────────────────────────────────
+  const { data: uazapiCheck } = await db
+    .from('uazapi_config')
+    .select('id')
+    .eq('account_id', args.accountId)
+    .maybeSingle()
+  if (uazapiCheck) {
+    const result = await sendUazapiMessage(db, args.accountId, {
+      conversationId: args.conversationId,
+      messageType: args.kind,
+      mediaUrl: args.link,
+      contentText: args.caption,
+      filename: args.filename,
+    })
+    return { whatsapp_message_id: result.whatsappMessageId }
+  }
+  // ───────────────────────────────────────────────────────────────
 
   const { data: contact, error: contactErr } = await db
     .from('contacts')

@@ -328,4 +328,64 @@ describe('POST /api/uazapi/webhook', () => {
     expect(response.status).toBe(200);
     expect(data).toEqual({ success: true });
   });
+
+  it('processes ReadReceipt status update and updates message status in database', async () => {
+    const mockConfig = { account_id: 'acct-123', instance_token: 'valid_token' };
+    const selectFn = vi.fn().mockResolvedValue({ data: [{ id: '1', message_id: '3EB0002F131E2368C407DB' }], error: null });
+    const inFn = vi.fn().mockReturnValue({ select: selectFn });
+    const ilikeFn = vi.fn().mockReturnValue({ select: selectFn });
+    const updateFn = vi.fn().mockReturnValue({ in: inFn, ilike: ilikeFn });
+
+    mockSupabaseAdmin.from.mockImplementation((table: string) => {
+      if (table === 'uazapi_config') {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: vi.fn().mockResolvedValue({ data: mockConfig, error: null }),
+            }),
+          }),
+        };
+      }
+      if (table === 'messages' || table === 'broadcast_recipients') {
+        return {
+          update: updateFn,
+        };
+      }
+      return {};
+    });
+
+    const payload = {
+      BaseUrl: 'https://auditgw0.uazapi.com',
+      EventType: 'messages_update',
+      event: {
+        Chat: '5511952200800@s.whatsapp.net',
+        IsFromMe: false,
+        IsGroup: false,
+        MessageIDs: ['3EB0002F131E2368C407DB'],
+        Sender: '5511952200800@s.whatsapp.net',
+        Timestamp: 1784897863,
+        Type: 'Read',
+        chatid: '5511952200800@s.whatsapp.net',
+      },
+      instanceName: 'Felipe_test_wa',
+      owner: '551150262185',
+      state: 'Read',
+      token: 'valid_token',
+      type: 'ReadReceipt',
+    };
+
+    const request = new Request('http://localhost:3000/api/uazapi/webhook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data).toEqual({ success: true });
+    expect(updateFn).toHaveBeenCalledWith({ status: 'read' });
+    expect(inFn).toHaveBeenCalledWith('message_id', ['3EB0002F131E2368C407DB']);
+  });
 });

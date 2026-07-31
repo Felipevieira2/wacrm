@@ -897,6 +897,7 @@
       "activeAria": "Ativo",
       "save": "Salvar",
       "saveDraft": "Salvar Rascunho",
+      "delete": "Excluir",
       "untitled": "Automação sem título",
       "backToAutomations": "Voltar para automações",
       "toasts": {
@@ -1601,7 +1602,7 @@
       "nameLabel": "Nome",
       "namePlaceholder": "ex: Automação Zapier",
       "scopesLabel": "Escopos",
-      "scopesHint": "Uma chave sem escopos ainda pode chamar <code className=\"text-[11px]\">GET /api/v1/me</code> para verificar se funciona.",
+      "scopesHint": "Uma chave sem escopos ainda pode chamar <code>GET /api/v1/me</code> para verificar se funciona.",
       "cancel": "Cancelar",
       "creating": "Criando…",
       "createKey": "Criar chave",

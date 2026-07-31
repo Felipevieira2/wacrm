@@ -20,6 +20,7 @@
 // ============================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { sendUazapiMessage } from '@/lib/uazapi/send-message';
 
 import {
   sendTextMessage,
@@ -214,6 +215,21 @@ export async function sendMessageToConversation(
     templateName,
     interactivePayload,
   });
+
+  // ── Transport detection ────────────────────────────────────────────────────
+  // If the account has a Uazapi integration configured, delegate all sends to
+  // the Uazapi transport. This is transparent to every caller (dashboard,
+  // public API, automations, flows) — they keep calling sendMessageToConversation.
+  const { data: uazapiCheck } = await db
+    .from('uazapi_config')
+    .select('id')
+    .eq('account_id', accountId)
+    .maybeSingle();
+
+  if (uazapiCheck) {
+    return sendUazapiMessage(db, accountId, params);
+  }
+  // ──────────────────────────────────────────────────────────────────────────
 
   const isMediaKind = (MEDIA_KINDS as readonly string[]).includes(messageType);
 

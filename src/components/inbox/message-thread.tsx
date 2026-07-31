@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { format, isToday, isYesterday, differenceInHours } from "date-fns";
 import { useTranslations } from "next-intl";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -552,7 +553,7 @@ export function MessageThread({
           onUpdateMessage(tempId, { status: "failed" });
           // The upload never reached the recipient — GC the orphaned
           // object rather than leaving it in the public bucket forever.
-          void deleteAccountMedia(CHAT_MEDIA_BUCKET, payload.path).catch(() => {});
+          void deleteAccountMedia(CHAT_MEDIA_BUCKET, payload.path).catch(() => { });
           return;
         }
 
@@ -562,7 +563,7 @@ export function MessageThread({
         const reason = err instanceof Error ? err.message : "network error";
         toast.error(`Failed to send: ${reason}`);
         onUpdateMessage(tempId, { status: "failed" });
-        void deleteAccountMedia(CHAT_MEDIA_BUCKET, payload.path).catch(() => {});
+        void deleteAccountMedia(CHAT_MEDIA_BUCKET, payload.path).catch(() => { });
       }
     },
     [conversation, onNewMessage, onUpdateMessage],
@@ -744,14 +745,28 @@ export function MessageThread({
 
   const handleStartReply = useCallback(
     (msg: Message) => {
+      const { preview, mediaUrl, contentType } = buildReplyPreview(msg, tQuote);
       setReplyTo({
         id: msg.id,
         authorLabel: authorLabelFor(msg),
-        preview: buildReplyPreview(msg, tQuote),
+        preview,
       });
     },
     [authorLabelFor],
   );
+
+  /** Scroll smoothly to a message by id and flash a highlight ring on the bubble. */
+  const scrollToMessage = useCallback((messageId: string) => {
+    const row = document.querySelector<HTMLElement>(`[data-message-id="${messageId}"]`);
+    if (!row) return;
+    row.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Apply the ring to the inner bubble div, not the full-width row container
+    const bubble = row.querySelector<HTMLElement>("[data-message-bubble]") ?? row;
+    bubble.classList.add("ring-2", "ring-primary", "ring-offset-2", "transition-all", "duration-300");
+    setTimeout(() => {
+      bubble.classList.remove("ring-2", "ring-primary", "ring-offset-2");
+    }, 1800);
+  }, []);
 
   // Single reaction-set primitive. emoji === "" removes; otherwise adds/swaps.
   // The "toggle" semantic (pill click) is computed at the call site where the
@@ -894,9 +909,14 @@ export function MessageThread({
               <ArrowLeft className="h-5 w-5" />
             </button>
           )}
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium text-foreground">
-            {displayName.charAt(0).toUpperCase()}
-          </div>
+          <Avatar className="h-9 w-9 flex-shrink-0">
+            {contact.avatar_url && (
+              <AvatarImage src={contact.avatar_url} alt={displayName} />
+            )}
+            <AvatarFallback className="bg-muted text-sm font-medium text-foreground">
+              {displayName.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
           <div className="min-w-0">
             <h2 className="truncate text-sm font-semibold text-foreground">{displayName}</h2>
             <p className="truncate text-xs text-muted-foreground">{contact.phone}</p>
@@ -968,11 +988,11 @@ export function MessageThread({
           {/* Status dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger className={cn(
-                  "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
-                  currentStatus?.color ?? "text-muted-foreground"
-                )}>
-                {currentStatus ? t(`status${currentStatus.label}`) : t("status")}
-                <ChevronDown className="h-3 w-3" />
+              "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+              currentStatus?.color ?? "text-muted-foreground"
+            )}>
+              {currentStatus ? t(`status${currentStatus.label}`) : t("status")}
+              <ChevronDown className="h-3 w-3" />
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
@@ -1087,13 +1107,19 @@ export function MessageThread({
                       ? messagesById.get(msg.reply_to_message_id)
                       : null;
                     const reply = parent
-                      ? {
-                          authorLabel:
-                            parent.sender_type === "agent" || parent.sender_type === "bot"
-                              ? t("me") 
-                              : contact?.name || contact?.phone || "Unknown",
-                          preview: buildReplyPreview(parent, tQuote),
-                        }
+                      ? (() => {
+                          const { preview, mediaUrl, contentType } = buildReplyPreview(parent, tQuote);
+                          return {
+                            authorLabel:
+                              parent.sender_type === "agent" || parent.sender_type === "bot"
+                                ? t("me")
+                                : contact?.name || contact?.phone || "Unknown",
+                            preview,
+                            mediaUrl,
+                            contentType,
+                            onJump: () => scrollToMessage(parent.id),
+                          };
+                        })()
                       : null;
                     const msgReactions = reactionsByMessageId.get(msg.id);
                     // Toggle is computed at the call site — `msgReactions`
@@ -1111,6 +1137,7 @@ export function MessageThread({
                       <MessageActions
                         key={msg.id}
                         message={msg}
+                        data-message-id={msg.id}
                         onReply={() => handleStartReply(msg)}
                         onReact={(emoji) => {
                           if (emoji) void postReaction(msg.id, emoji);

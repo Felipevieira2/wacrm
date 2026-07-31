@@ -28,10 +28,14 @@ export async function downloadAndUploadUazapiMedia(
     const res = await fetch(url, {
       method: 'POST',
       headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
         'token': token,
-        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ id: messageId })
+      body: JSON.stringify({
+        id: messageId,
+        return_base64: false,
+      })
     })
 
     if (!res.ok) {
@@ -39,19 +43,36 @@ export async function downloadAndUploadUazapiMedia(
       return null
     }
 
-    // The response could be binary data or base64 wrapped in JSON depending on the uazapi version
-    // We treat it as an arrayBuffer to handle direct binary output
-    const contentType = res.headers.get('content-type') || 'application/octet-stream'
-    
+    // The response could be binary data, base64 wrapped in JSON, or a JSON object with fileURL/url
+    let contentTypeHeader = res.headers.get('content-type') || 'application/octet-stream'
     let buffer: ArrayBuffer | Buffer
-    if (contentType.includes('application/json')) {
+
+    if (contentTypeHeader.includes('application/json')) {
       const json = await res.json()
-      // If it's a base64 payload
       if (json.base64) {
         buffer = Buffer.from(json.base64, 'base64')
       } else {
-        console.error(`[uazapi/media] Unexpected JSON response for media download:`, json)
-        return null
+        const fileUrl = json.fileURL || json.fileUrl || json.url || json.mediaUrl || json.link
+        if (fileUrl && typeof fileUrl === 'string') {
+          if (json.mimetype) {
+            contentTypeHeader = json.mimetype
+          }
+          try {
+            const fetchRes = await fetch(fileUrl)
+            if (fetchRes.ok) {
+              buffer = await fetchRes.arrayBuffer()
+            } else {
+              console.warn(`[uazapi/media] Fetch fileURL returned status ${fetchRes.status}, using fileURL directly: ${fileUrl}`)
+              return fileUrl
+            }
+          } catch (err) {
+            console.warn(`[uazapi/media] Failed to fetch fileURL, using fileURL directly:`, err)
+            return fileUrl
+          }
+        } else {
+          console.error(`[uazapi/media] Unexpected JSON response for media download:`, json)
+          return null
+        }
       }
     } else {
       buffer = await res.arrayBuffer()
@@ -62,7 +83,7 @@ export async function downloadAndUploadUazapiMedia(
     const { error: uploadError } = await supabaseAdmin.storage
       .from('chat-media')
       .upload(path, buffer, {
-        contentType,
+        contentType: contentTypeHeader,
         upsert: true,
       })
 

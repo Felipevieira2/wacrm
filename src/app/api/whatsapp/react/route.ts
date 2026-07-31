@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { sendReactionMessage } from '@/lib/whatsapp/meta-api';
 import { decrypt } from '@/lib/whatsapp/encryption';
 import { sanitizePhoneForMeta } from '@/lib/whatsapp/phone-utils';
+import { UazapiClient } from '@/lib/uazapi/client';
 import {
   checkRateLimit,
   rateLimitResponse,
@@ -108,39 +109,65 @@ export async function POST(request: Request) {
       );
     }
 
-    // WhatsApp config + access token. Account-scoped post-multi-user.
-    const { data: config, error: configError } = await supabase
-      .from('whatsapp_config')
-      .select('phone_number_id, access_token')
+    // Check if account uses Uazapi transport
+    const { data: uazapiConfig } = await supabase
+      .from('uazapi_config')
+      .select('instance_url, instance_token')
       .eq('account_id', accountId)
-      .single();
+      .maybeSingle();
 
-    if (configError || !config) {
-      return NextResponse.json(
-        { error: 'WhatsApp not configured.' },
-        { status: 400 },
-      );
-    }
-
-    const accessToken = decrypt(config.access_token);
-    const sanitizedPhone = sanitizePhoneForMeta(contact.phone);
-
-    try {
-      await sendReactionMessage({
-        phoneNumberId: config.phone_number_id,
-        accessToken,
-        to: sanitizedPhone,
-        targetMessageId: targetMessage.message_id,
+    if (uazapiConfig) {
+      const destinationPhone = contact.phone.replace(/^\+/, '').replace(/@.*$/, '').replace(/\D/g, '');
+      const plainToken = decrypt(uazapiConfig.instance_token);
+      const uazapiClient = new UazapiClient(uazapiConfig.instance_url, plainToken);
+      const reactResult = await uazapiClient.sendReaction(
+        destinationPhone,
+        targetMessage.message_id,
         emoji,
-      });
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Unknown Meta API error';
-      console.error('[whatsapp/react] Meta send failed:', message);
-      return NextResponse.json(
-        { error: `Meta API error: ${message}` },
-        { status: 502 },
       );
+
+      if (!reactResult.ok) {
+        console.error('[whatsapp/react] Uazapi reaction failed:', reactResult.error);
+        return NextResponse.json(
+          { error: `Uazapi reaction failed: ${reactResult.error}` },
+          { status: 502 },
+        );
+      }
+    } else {
+      // WhatsApp config + access token. Account-scoped post-multi-user.
+      const { data: config, error: configError } = await supabase
+        .from('whatsapp_config')
+        .select('phone_number_id, access_token')
+        .eq('account_id', accountId)
+        .single();
+
+      if (configError || !config) {
+        return NextResponse.json(
+          { error: 'WhatsApp not configured.' },
+          { status: 400 },
+        );
+      }
+
+      const accessToken = decrypt(config.access_token);
+      const sanitizedPhone = sanitizePhoneForMeta(contact.phone);
+
+      try {
+        await sendReactionMessage({
+          phoneNumberId: config.phone_number_id,
+          accessToken,
+          to: sanitizedPhone,
+          targetMessageId: targetMessage.message_id,
+          emoji,
+        });
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : 'Unknown Meta API error';
+        console.error('[whatsapp/react] Meta send failed:', message);
+        return NextResponse.json(
+          { error: `Meta API error: ${message}` },
+          { status: 502 },
+        );
+      }
     }
 
     // Mirror into DB. Empty emoji = removal.

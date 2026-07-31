@@ -50,3 +50,22 @@ export interface UazapiErrorResponse {
 export type UazapiResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string; status?: number };
+
+/** Shape returned by Uazapi on a successful message send */
+export interface UazapiSendMessageResponse {
+  /** WhatsApp message key — contains the message id */
+  key?: {
+    id?: string;
+    remoteJid?: string;
+    fromMe?: boolean;
+  };
+  /** Arbitrary message envelope (varies by type) */
+  message?: Record<string, unknown>;
+  /** Some Uazapi versions echo the id at the top level */
+  messageId?: string;
+  id?: string;
+}
+
+/** Supported media kinds for Uazapi send — mirrors Meta's MediaKind */
+export type UazapiMediaKind = 'image' | 'video' | 'document' | 'audio';
+

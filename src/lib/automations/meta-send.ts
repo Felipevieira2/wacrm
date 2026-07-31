@@ -12,6 +12,7 @@ import {
   isRecipientNotAllowedError,
 } from '@/lib/whatsapp/phone-utils'
 import { supabaseAdmin } from './admin-client'
+import { sendUazapiMessage } from '@/lib/uazapi/send-message'
 
 // ------------------------------------------------------------
 // Automation-side Meta sender.
@@ -108,14 +109,28 @@ type SendInput =
 async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: string }> {
   const db = supabaseAdmin()
 
+  // ── Transport detection ─────────────────────────────────────────────────
+  // Route through Uazapi if the account has it configured.
+  const { data: uazapiCheck } = await db
+    .from('uazapi_config')
+    .select('id')
+    .eq('account_id', input.accountId)
+    .maybeSingle()
+
+  if (uazapiCheck) {
+    const result = await sendUazapiMessage(db, input.accountId, {
+      conversationId: input.conversationId,
+      messageType: input.kind === 'template' ? 'template' : 'text',
+      contentText: input.kind === 'text' ? input.text : undefined,
+      templateName: input.kind === 'template' ? input.templateName : undefined,
+      templateLanguage: input.kind === 'template' ? input.language : undefined,
+      templateParams: input.kind === 'template' ? input.params : undefined,
+    })
+    return { whatsapp_message_id: result.whatsappMessageId }
+  }
+  // ───────────────────────────────────────────────────────────────
+
   // Scope the contact + config lookups by account_id, not user_id.
-  // The engine uses the service-role client (bypassing RLS); without
-  // this filter, an authenticated user could fire their own
-  // automations against another tenant's contact UUID and send via
-  // their own WhatsApp config to that contact's phone. The 017
-  // migration moved both tables to account-scoped tenancy, so the
-  // check is the same defense-in-depth as before, just keyed on the
-  // new tenancy column.
   const { data: contact, error: contactErr } = await db
     .from('contacts')
     .select('id, phone')

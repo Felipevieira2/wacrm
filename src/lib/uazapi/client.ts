@@ -17,6 +17,8 @@ import type {
   UazapiStatusResponse,
   UazapiLogoutResponse,
   UazapiResult,
+  UazapiSendMessageResponse,
+  UazapiMediaKind,
 } from './types';
 
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -77,13 +79,13 @@ export class UazapiClient {
       // Some endpoints return 200 with an empty body on success
       const text = await res.text();
       let data: any = text ? JSON.parse(text) : {};
-      
+
       // Unwrap Uazapi v2 response envelope if present (e.g. { code: 200, message: "Success", data: { qrcode: "..." } })
       if (data && typeof data === 'object' && 'data' in data && 'code' in data) {
         data = data.data;
       }
 
-      console.log(`[UAZAPI DEBUG] ${method} ${path} ->`, data);
+      // console.log(`[UAZAPI DEBUG] ${method} ${path} ->`, data);
 
       return { ok: true, data: data as T };
     } catch (err) {
@@ -128,5 +130,127 @@ export class UazapiClient {
    */
   logout(): Promise<UazapiResult<UazapiLogoutResponse>> {
     return this.request<UazapiLogoutResponse>('POST', '/instance/disconnect');
+  }
+
+  // ── Outbound message send ──────────────────────────────────────────────────
+
+  /**
+   * Send a plain-text message.
+   * Tries standard Uazapi paths (/send/text, /sendText, /message/sendText).
+   * @param number Destination phone in international format without + (e.g. 5511999999999)
+   * @param replyid Optional WhatsApp message_id being replied to
+   */
+  async sendText(
+    number: string,
+    text: string,
+    replyid?: string,
+  ): Promise<UazapiResult<UazapiSendMessageResponse>> {
+    const endpoints = ['/send/text', '/sendText', '/message/sendText'];
+    let lastResult: UazapiResult<UazapiSendMessageResponse> | null = null;
+
+    const body: Record<string, unknown> = {
+      number,
+      text,
+      message: text,
+    };
+    if (replyid) {
+      body.replyid = replyid;
+      body.reply_id = replyid;
+      body.replyId = replyid;
+    }
+
+    for (const path of endpoints) {
+      const res = await this.request<UazapiSendMessageResponse>('POST', path, body);
+      if (res.ok) return res;
+      lastResult = res;
+      if (res.status !== 404 && res.status !== 405) break;
+    }
+
+    return lastResult!;
+  }
+
+  /**
+   * Send a media message (image, video, document, or audio PTT).
+   * Prioritises Uazapi v2's unified `/send/media` endpoint, with fallbacks to legacy routes.
+   * @param replyid Optional WhatsApp message_id being replied to
+   */
+  async sendMedia(
+    kind: UazapiMediaKind,
+    number: string,
+    mediaUrl: string,
+    caption?: string,
+    fileName?: string,
+    replyid?: string,
+  ): Promise<UazapiResult<UazapiSendMessageResponse>> {
+    const capitalized = kind.charAt(0).toUpperCase() + kind.slice(1);
+    const endpoints = [
+      `/send/media`,
+      `/send/${kind}`,
+      `/send${capitalized}`,
+      `/message/send${capitalized}`,
+    ];
+
+    const mediaType = kind === 'audio' ? 'ptt' : kind;
+
+    const body: Record<string, unknown> = {
+      number,
+      media: mediaUrl,
+      mediaUrl,
+      file: mediaUrl,
+      type: mediaType,
+    };
+    if (kind !== 'audio') {
+      if (caption) body.caption = caption;
+      if (kind === 'document' && fileName) body.fileName = fileName;
+    }
+    if (replyid) {
+      body.replyid = replyid;
+      body.reply_id = replyid;
+      body.replyId = replyid;
+    }
+
+    let lastResult: UazapiResult<UazapiSendMessageResponse> | null = null;
+    for (const path of endpoints) {
+      const res = await this.request<UazapiSendMessageResponse>('POST', path, body);
+      if (res.ok) return res;
+      lastResult = res;
+      if (res.status !== 404 && res.status !== 405) break;
+    }
+
+    return lastResult!;
+  }
+
+  /**
+   * Send a reaction (or remove reaction with empty string "") to a message.
+   * Tries Uazapi reaction paths (/message/react, /send/reaction, /react).
+   */
+  async sendReaction(
+    number: string,
+    messageId: string,
+    emoji: string,
+  ): Promise<UazapiResult<UazapiSendMessageResponse>> {
+    const endpoints = ['/message/react', '/send/reaction', '/react'];
+    const body: Record<string, unknown> = {
+      id: messageId,
+      number,
+      phone: number,
+      remoteJid: `${number}@s.whatsapp.net`,
+      messageId,
+      message_id: messageId,
+      reaction: emoji,
+      text: emoji,
+      emoji,
+      key: { id: messageId },
+    };
+
+    let lastResult: UazapiResult<UazapiSendMessageResponse> | null = null;
+    for (const path of endpoints) {
+      const res = await this.request<UazapiSendMessageResponse>('POST', path, body);
+      if (res.ok) return res;
+      lastResult = res;
+      if (res.status !== 404 && res.status !== 405) break;
+    }
+
+    return lastResult!;
   }
 }

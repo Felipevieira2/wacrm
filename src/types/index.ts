@@ -245,6 +245,7 @@ export interface Message {
    * 'interactive'` and `sender_type` is agent/bot. Migration 035.
    */
   interactive_payload?: InteractiveMessagePayload;
+  edited_at?: string | null;
   /**
    * True when the AI auto-reply bot generated + sent this message (as
    * opposed to a human agent or a deterministic Flow/automation send,
@@ -252,6 +253,14 @@ export interface Message {
    * badge in the inbox. Migration 033.
    */
   ai_generated?: boolean;
+}
+
+export interface MessageEdit {
+  id: string;
+  message_id: string;
+  old_content_text: string;
+  new_content_text: string;
+  edited_at: string;
 }
 
 export type ReactionActor = 'customer' | 'agent';

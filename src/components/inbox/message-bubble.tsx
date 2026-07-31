@@ -14,17 +14,27 @@ import {
   ImageOff,
   CornerDownLeft,
   Sparkles,
+  Pencil,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ReplyQuote } from "./reply-quote";
 import { MessageReactions } from "./message-reactions";
 import { InteractivePreview } from "@/components/interactive/interactive-preview";
+import { MediaModal } from "@/components/ui/media-modal";
+import { MessageEditHistoryModal } from "./message-edit-history";
 import { useTranslations } from "next-intl";
 
 interface MessageBubbleProps {
   message: Message;
   /** Pre-computed quote info for messages that reply to another. */
-  reply?: { authorLabel: string; preview: string } | null;
+  reply?: {
+    authorLabel: string;
+    preview: string;
+    mediaUrl?: string | null;
+    contentType?: string;
+    /** Scroll-to-quoted-message callback injected by the thread. */
+    onJump?: () => void;
+  } | null;
   reactions?: MessageReaction[];
   currentUserId?: string;
   onToggleReaction?: (emoji: string) => void;
@@ -110,12 +120,14 @@ function MediaImage({ url, alt }: { url: string; alt: string }) {
   }
 
   return (
-    <img
-      src={src ?? ""}
-      alt={alt}
-      className="max-h-64 max-w-60 rounded-lg object-cover"
-      onError={() => setError(true)}
-    />
+    <MediaModal src={src ?? ""} type="image" title={alt}>
+      <img
+        src={src ?? ""}
+        alt={alt}
+        className="max-h-64 max-w-60 rounded-lg object-cover cursor-pointer hover:opacity-95 transition-opacity"
+        onError={() => setError(true)}
+      />
+    </MediaModal>
   );
 }
 
@@ -266,6 +278,7 @@ export function MessageBubble({
   onToggleReaction,
 }: MessageBubbleProps) {
   const t = useTranslations("Inbox.bubble");
+  const [showEditHistory, setShowEditHistory] = useState(false);
 
   const isAgent = message.sender_type === "agent" || message.sender_type === "bot";
   const time = format(new Date(message.created_at), "HH:mm");
@@ -280,6 +293,7 @@ export function MessageBubble({
       )}
     >
       <div
+        data-message-bubble
         className={cn(
           "relative rounded-2xl px-3 py-2",
           isAgent
@@ -291,13 +305,16 @@ export function MessageBubble({
           <ReplyQuote
             authorLabel={reply.authorLabel}
             preview={reply.preview}
+            mediaUrl={reply.mediaUrl}
+            contentType={reply.contentType}
+            onJump={reply.onJump}
             onPrimary={isAgent}
           />
         )}
         <MessageContent message={message} t={t} />
         <div
           className={cn(
-            "mt-1 flex items-center gap-1",
+            "mt-1 flex items-center gap-1.5",
             isAgent ? "justify-end" : "justify-start",
           )}
         >
@@ -314,6 +331,25 @@ export function MessageBubble({
               {t("aiBadge")}
             </span>
           )}
+
+          {message.edited_at && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowEditHistory(true);
+              }}
+              className={cn(
+                "inline-flex items-center gap-0.5 text-[9px] font-medium hover:underline cursor-pointer transition-opacity opacity-80 hover:opacity-100",
+                isAgent ? "text-primary-foreground/80" : "text-muted-foreground",
+              )}
+              title="Clique para ver o histórico de edições"
+            >
+              <Pencil className="h-2.5 w-2.5" />
+              <span>editada</span>
+            </button>
+          )}
+
           <span
             className={cn(
               "text-[10px]",
@@ -334,6 +370,14 @@ export function MessageBubble({
           reactions={reactions}
           currentUserId={currentUserId}
           onToggle={onToggleReaction}
+        />
+      )}
+
+      {showEditHistory && (
+        <MessageEditHistoryModal
+          messageId={message.id}
+          isOpen={showEditHistory}
+          onClose={() => setShowEditHistory(false)}
         />
       )}
     </div>

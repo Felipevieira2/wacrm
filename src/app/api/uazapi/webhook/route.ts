@@ -21,20 +21,35 @@ function supabaseAdmin() {
   return _adminClient
 }
 
+export async function GET() {
+  return NextResponse.json({ status: 'ok', message: 'Uazapi Webhook active' })
+}
+
 export async function POST(request: Request) {
   try {
     const rawBody = await request.text()
 
+    if (!rawBody || rawBody.trim() === '') {
+      return NextResponse.json({ status: 'ok', message: 'Empty body received' })
+    }
+
+    let payload: any
+    try {
+      payload = JSON.parse(rawBody)
+    } catch {
+      return NextResponse.json({ status: 'ok', message: 'Non-JSON body received' })
+    }
+
     // Some versions of Uazapi/Evolution wrap the payload differently.
     // The n8n script shows it wrapped in { "body": { ... } } sometimes.
     // We parse and normalise.
-    let payload = JSON.parse(rawBody)
     if (payload.body && !payload.message && !payload.event) {
       payload = payload.body
     }
 
     const token = payload.token || payload.instance_token || request.headers.get('token')
     if (!token) {
+      console.warn('[uazapi/webhook] Webhook call missing token:', { headers: Object.fromEntries(request.headers.entries()), payload })
       return NextResponse.json({ error: 'No instance token provided' }, { status: 401 })
     }
 
@@ -118,6 +133,104 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true })
     }
 
+    // Check for ReadReceipt / Status updates (messages_update, ReadReceipt, etc.)
+    const isReadReceiptOrStatusUpdate =
+      payload.type === 'ReadReceipt' ||
+      payload.EventType === 'messages_update' ||
+      payload.event?.Type === 'Read' ||
+      payload.state === 'Read' ||
+      (Array.isArray(event?.MessageIDs) && event.MessageIDs.length > 0 && !message)
+
+    if (isReadReceiptOrStatusUpdate && !message) {
+      const rawIds: string[] = []
+      if (Array.isArray(event?.MessageIDs)) rawIds.push(...event.MessageIDs)
+      if (Array.isArray(event?.messageIds)) rawIds.push(...event.messageIds)
+      if (event?.MessageID) rawIds.push(event.MessageID)
+      if (event?.id) rawIds.push(event.id)
+      if (Array.isArray(payload.MessageIDs)) rawIds.push(...payload.MessageIDs)
+      if (Array.isArray(payload.messageIds)) rawIds.push(...payload.messageIds)
+      if (payload.messageId) rawIds.push(payload.messageId)
+      if (payload.id && typeof payload.id === 'string') rawIds.push(payload.id)
+
+      // Deduplicate raw IDs
+      const uniqueRawIds = Array.from(new Set(rawIds.filter(Boolean)))
+
+      // Extract clean variants (e.g. "3EB0002F131E2368C407DB" from "false_5511...@s.whatsapp.net_3EB0002F131E2368C407DB")
+      const idVariantsSet = new Set<string>()
+      uniqueRawIds.forEach((id) => {
+        idVariantsSet.add(id)
+        const cleaned = id
+          .replace(/^(true|false)_/, '')
+          .replace(/_[0-9A-Z]+@.*/i, '')
+          .replace(/@.*$/, '')
+        if (cleaned) idVariantsSet.add(cleaned)
+        const parts = id.split('_')
+        if (parts.length > 1) {
+          const lastPart = parts[parts.length - 1]
+          if (lastPart) idVariantsSet.add(lastPart)
+        }
+      })
+      const idVariants = Array.from(idVariantsSet)
+
+      const rawState = payload.state || event?.Type || payload.type
+      let newStatus: 'read' | 'delivered' | 'sent' | 'failed' | null = null
+
+      if (typeof rawState === 'string') {
+        const lower = rawState.toLowerCase()
+        if (lower.includes('read')) newStatus = 'read'
+        else if (lower.includes('deliver')) newStatus = 'delivered'
+        else if (lower.includes('sent')) newStatus = 'sent'
+        else if (lower.includes('fail')) newStatus = 'failed'
+      }
+
+      if (idVariants.length > 0 && newStatus) {
+        // 1. Exact match update on messages table
+        let { data: updatedMsgs, error: msgErr } = await supabase
+          .from('messages')
+          .update({ status: newStatus })
+          .in('message_id', idVariants)
+          .select('id, message_id, conversation_id')
+
+        // 2. If 0 rows updated, try fuzzy/ilike matching for each variant
+        if ((!updatedMsgs || updatedMsgs.length === 0) && !msgErr) {
+          for (const variant of idVariants) {
+            if (variant.length < 5) continue
+            const { data: fuzzyUpdated } = await supabase
+              .from('messages')
+              .update({ status: newStatus })
+              .ilike('message_id', `%${variant}%`)
+              .select('id, message_id, conversation_id')
+
+            if (fuzzyUpdated && fuzzyUpdated.length > 0) {
+              updatedMsgs = [...(updatedMsgs || []), ...fuzzyUpdated]
+            }
+          }
+        }
+
+        // 3. Also update broadcast_recipients status if applicable
+        const tsIso = new Date().toISOString()
+        for (const variant of idVariants) {
+          if (variant.length < 5) continue
+          const updateData: Record<string, unknown> = { status: newStatus }
+          if (newStatus === 'read') updateData.read_at = tsIso
+          if (newStatus === 'delivered') updateData.delivered_at = tsIso
+
+          await supabase
+            .from('broadcast_recipients')
+            .update(updateData)
+            .ilike('whatsapp_message_id', `%${variant}%`)
+        }
+
+        console.log('[uazapi/webhook] Processed ReadReceipt:', {
+          idVariants,
+          newStatus,
+          updatedCount: updatedMsgs?.length || 0,
+        })
+      }
+
+      return NextResponse.json({ success: true })
+    }
+
     // If there's no message body, we ignore (maybe an ack or status update we don't handle yet)
     if (!message) {
       return NextResponse.json({ success: true })
@@ -155,30 +268,49 @@ export async function POST(request: Request) {
 
     // 4. Handle Edits
     if (message.edited) {
-      const originalMessageId = message.edited
+      const originalMessageId = String(message.edited)
       const newText = message.text || message.content?.text
 
-      // Find original message
-      const { data: originalMsg } = await supabase
+      // Find original message (exact match first, then fuzzy match)
+      let { data: originalMsg } = await supabase
         .from('messages')
-        .select('id, content_text')
+        .select('id, content_text, conversation_id')
         .eq('message_id', originalMessageId)
         .maybeSingle()
 
+      if (!originalMsg && originalMessageId.length >= 5) {
+        const cleanId = originalMessageId.replace(/^(true|false)_/, '').replace(/@.*$/, '')
+        const { data: fuzzyMsg } = await supabase
+          .from('messages')
+          .select('id, content_text, conversation_id')
+          .ilike('message_id', `%${cleanId}%`)
+          .limit(1)
+          .maybeSingle()
+        originalMsg = fuzzyMsg
+      }
+
       if (originalMsg && newText) {
+        const editTimestamp = parseTimestamp(message.messageTimestamp || message.timestamp).toISOString()
+
         // Save to message_edits history
         await supabase.from('message_edits').insert({
           message_id: originalMsg.id,
-          old_content_text: originalMsg.content_text,
+          old_content_text: originalMsg.content_text || '',
           new_content_text: newText,
-          edited_at: parseTimestamp(message.messageTimestamp || message.timestamp).toISOString()
+          edited_at: editTimestamp
         })
 
         // Update current message
         await supabase
           .from('messages')
-          .update({ content_text: newText, edited_at: new Date().toISOString() })
+          .update({ content_text: newText, edited_at: editTimestamp })
           .eq('id', originalMsg.id)
+
+        console.log('[uazapi/webhook] Processed message edit:', {
+          originalMessageId,
+          msgId: originalMsg.id,
+          newText,
+        })
       }
       return NextResponse.json({ success: true })
     }
@@ -258,12 +390,15 @@ export async function POST(request: Request) {
       const extension = mimeMap[mimeSuffix] || mimeSuffix
       const fileName = `${messageId}.${extension}`
 
+      let directUrl = message.content?.URL || message.content?.fileURL || message.fileURL || payload.fileURL || null
+
       let decryptedToken = config.instance_token
       try {
         decryptedToken = decrypt(config.instance_token)
       } catch {
         // Token may already be plain text
       }
+
       const mediaUrl = await downloadAndUploadUazapiMedia(
         config.instance_url,
         decryptedToken,
@@ -272,9 +407,7 @@ export async function POST(request: Request) {
         fileName
       )
 
-      if (mediaUrl) {
-        msgRecord.media_url = mediaUrl
-      }
+      msgRecord.media_url = mediaUrl || directUrl
     }
     else {
       // Default to text
