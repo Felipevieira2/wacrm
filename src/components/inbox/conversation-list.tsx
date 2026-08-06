@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CONVERSATION_SELECT,
@@ -430,7 +430,11 @@ interface ConversationItemProps {
   t: ReturnType<typeof useTranslations>;
 }
 
-function ConversationItem({
+// ⚡ Bolt: Wrapped ConversationItem in React.memo to prevent unnecessary re-renders.
+// Since the parent ConversationList re-renders whenever the active conversation changes,
+// memoization ensures that only the two affected items (previously active, newly active)
+// re-render, significantly improving list performance.
+const ConversationItem = React.memo(function ConversationItem({
   conversation,
   isActive,
   onSelect,
@@ -501,4 +505,4 @@ function ConversationItem({
       </div>
     </button>
   );
-}
+});
