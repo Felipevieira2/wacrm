@@ -159,35 +159,36 @@ export function ConversationList({
   }, [tags]);
 
   const filtered = useMemo(() => {
-    let result = conversations;
+    // ⚡ Bolt: Single pass filter - Reduces multiple O(n) array traversals to a single O(n) pass.
+    // We compute the search query once upfront to avoid doing it inside the loop.
+    const q = search.trim().toLowerCase();
+    const hasContactFilters = selectedTagIds.length > 0 || selectedCompany !== null;
 
-    if (filter === "unread") {
-      result = result.filter((c) => c.unread_count > 0);
-    } else if (filter !== "all") {
-      result = result.filter((c) => c.status === filter);
-    }
+    return conversations.filter((c) => {
+      // 1. Status/Unread Filter
+      if (filter === "unread" && c.unread_count <= 0) return false;
+      if (filter !== "all" && filter !== "unread" && c.status !== filter) return false;
 
-    // Contact-based filters (tags via OR logic, exact company match).
-    if (selectedTagIds.length > 0 || selectedCompany !== null) {
-      result = result.filter((c) =>
-        matchesContactFilters(c, {
-          tagIds: selectedTagIds,
-          company: selectedCompany,
-        })
-      );
-    }
+      // 2. Contact-based Filter
+      if (hasContactFilters && !matchesContactFilters(c, {
+        tagIds: selectedTagIds,
+        company: selectedCompany,
+      })) {
+        return false;
+      }
 
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter((c) => {
+      // 3. Search Filter
+      if (q) {
         const name = c.contact?.name?.toLowerCase() ?? "";
         const phone = c.contact?.phone?.toLowerCase() ?? "";
         const lastMsg = c.last_message_text?.toLowerCase() ?? "";
-        return name.includes(q) || phone.includes(q) || lastMsg.includes(q);
-      });
-    }
+        if (!name.includes(q) && !phone.includes(q) && !lastMsg.includes(q)) {
+          return false;
+        }
+      }
 
-    return result;
+      return true;
+    });
   }, [conversations, filter, search, selectedTagIds, selectedCompany]);
 
   const toggleTag = useCallback((id: string) => {
