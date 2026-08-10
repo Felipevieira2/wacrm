@@ -1,0 +1,3 @@
+## 2024-08-11 - [Missing list item memoization causes re-render bottlenecks]
+**Learning:** Next.js applications mapping over large arrays (like conversations in a CRM inbox) without virtualization or `React.memo` on list items can suffer severe performance degradation. Any state change in the parent (e.g., search input keystrokes, active ID changes) triggers full re-renders of all list items.
+**Action:** Always verify if a mapped list component in this codebase can be virtualized, and if not, wrap the list item component in `React.memo` ensuring props (like functions and translation objects) are stable.
