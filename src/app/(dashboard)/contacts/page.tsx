@@ -57,6 +57,7 @@ import { CustomFieldsManager } from '@/components/contacts/custom-fields-manager
 import { useCan } from '@/hooks/use-can';
 import { GatedButton } from '@/components/ui/gated-button';
 import { useTranslations } from 'next-intl';
+import { useDebounce } from '@/hooks/use-debounce';
 
 const PAGE_SIZE = 25;
 
@@ -73,6 +74,8 @@ export default function ContactsPage() {
   const [contacts, setContacts] = useState<ContactWithTags[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  // ⚡ Bolt: Debounce search input to avoid triggering Supabase fetch on every keystroke
+  const debouncedSearch = useDebounce(search, 300);
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   // Tag filter — contacts shown must have ANY of these tags (OR).
@@ -128,7 +131,7 @@ export default function ContactsPage() {
 
     const from = page * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
-    const term = search.trim();
+    const term = debouncedSearch.trim();
 
     let contactRows: Contact[];
     let count: number;
@@ -207,7 +210,7 @@ export default function ContactsPage() {
 
     setContacts(enriched);
     setLoading(false);
-  }, [supabase, page, search, selectedTagIds, tagsMap, t]);
+  }, [supabase, page, debouncedSearch, selectedTagIds, tagsMap, t]);
 
   // Load-once-on-mount-ish data fetches. Each setter inside runs
   // inside an async promise completion (Supabase await), not
