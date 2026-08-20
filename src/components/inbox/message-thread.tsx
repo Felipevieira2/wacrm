@@ -873,7 +873,9 @@ export function MessageThread({
   }
 
   const displayName = contact.name || contact.phone;
-  const messageGroups = groupMessagesByDate(messages);
+  // ⚡ Bolt: Memoized the grouping operation to prevent expensive recalculations
+  // on every thread re-render (e.g. when typing in the composer).
+  const messageGroups = useMemo(() => groupMessagesByDate(messages), [messages]);
   const currentStatus = STATUS_OPTIONS.find(
     (s) => s.value === conversation.status
   );
