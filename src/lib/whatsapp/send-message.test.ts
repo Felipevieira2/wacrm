@@ -136,7 +136,9 @@ describe('sendMessageToConversation — param validation (pre-DB)', () => {
     const spy = vi.fn(() => {
       throw new Error('reached DB');
     });
-    const db = { from: spy } as unknown as SupabaseClient;
+    const db = {
+      from: spy
+    } as unknown as SupabaseClient;
     await expect(
       sendMessageToConversation(db, 'acct-1', {
         ...base,
@@ -145,7 +147,8 @@ describe('sendMessageToConversation — param validation (pre-DB)', () => {
         contentText: 'a'.repeat(2000),
       })
     ).rejects.toThrow('reached DB');
-    expect(spy).toHaveBeenCalledWith('conversations');
+    // It queries uazapi_config first for transport detection before anything else
+    expect(spy).toHaveBeenCalledWith('uazapi_config');
   });
 });
 
