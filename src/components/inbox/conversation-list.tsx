@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CONVERSATION_SELECT,
@@ -430,7 +430,10 @@ interface ConversationItemProps {
   t: ReturnType<typeof useTranslations>;
 }
 
-function ConversationItem({
+// ⚡ Bolt: Memoize ConversationItem to prevent expensive re-renders
+// Lists of conversations re-render entirely when any state changes (e.g., active thread).
+// This optimization ensures only items that genuinely change visual state are re-rendered.
+const ConversationItem = React.memo(function ConversationItem({
   conversation,
   isActive,
   onSelect,
@@ -501,4 +504,19 @@ function ConversationItem({
       </div>
     </button>
   );
-}
+}, (prev, next) => {
+  // ⚡ Bolt: Custom equality check only looks at properties that affect rendering.
+  // We intentionally exclude translation functions or callbacks to avoid breaking
+  // memoization on parent renders, assuming language stays constant during viewing.
+  return (
+    prev.isActive === next.isActive &&
+    prev.conversation.id === next.conversation.id &&
+    prev.conversation.last_message_at === next.conversation.last_message_at &&
+    prev.conversation.last_message_text === next.conversation.last_message_text &&
+    prev.conversation.unread_count === next.conversation.unread_count &&
+    prev.conversation.status === next.conversation.status &&
+    prev.conversation.contact?.name === next.conversation.contact?.name &&
+    prev.conversation.contact?.phone === next.conversation.contact?.phone &&
+    prev.conversation.contact?.avatar_url === next.conversation.contact?.avatar_url
+  );
+});
