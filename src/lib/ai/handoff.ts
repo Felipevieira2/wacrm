@@ -23,9 +23,8 @@ export function buildHandoffSummary(args: {
 }): string {
   const { messages, replyCount } = args
 
-  const lastCustomer = [...messages]
-    .reverse()
-    .find((m) => m.role === 'user' && m.content.trim())
+  // ⚡ Bolt: using findLast() to avoid array copy and reverse()
+  const lastCustomer = messages.findLast((m) => m.role === 'user' && m.content.trim())
 
   const replies =
     replyCount === 0

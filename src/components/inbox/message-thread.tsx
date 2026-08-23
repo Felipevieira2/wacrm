@@ -232,9 +232,8 @@ export function MessageThread({
     if (!messages.length) return { expired: false, remaining: "" };
 
     // Find last customer message
-    const lastCustomerMsg = [...messages]
-      .reverse()
-      .find((m) => m.sender_type === "customer");
+    // ⚡ Bolt: using findLast() to avoid array copy and reverse()
+    const lastCustomerMsg = messages.findLast((m) => m.sender_type === "customer");
 
     if (!lastCustomerMsg) return { expired: true, remaining: "No customer messages" };
 
