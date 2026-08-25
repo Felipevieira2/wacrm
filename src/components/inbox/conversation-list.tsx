@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CONVERSATION_SELECT,
@@ -430,7 +430,9 @@ interface ConversationItemProps {
   t: ReturnType<typeof useTranslations>;
 }
 
-function ConversationItem({
+// ⚡ Bolt: Memoized to prevent O(n) re-renders of the entire conversation list
+// when only the active conversation changes.
+const ConversationItem = memo(function ConversationItem({
   conversation,
   isActive,
   onSelect,
@@ -501,4 +503,13 @@ function ConversationItem({
       </div>
     </button>
   );
-}
+}, (prev, next) => {
+  return (
+    prev.conversation === next.conversation &&
+    prev.isActive === next.isActive &&
+    prev.onSelect === next.onSelect
+    // We intentionally omit `t` from the comparison since translation functions
+    // from useTranslations often return a new reference on every render,
+    // which would break memoization. Locale changes will remount the app anyway.
+  );
+});
