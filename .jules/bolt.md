@@ -1,0 +1,4 @@
+## 2024-05-18 - Missing React.memo on Frequently Rendered List Items
+**Learning:** `ConversationItem` in `ConversationList` and `MessageBubble` in `MessageThread` are rendered frequently in long lists but lack `React.memo()`. This can cause significant unnecessary re-renders in Next.js when the parent list updates or state changes. When applying `React.memo` to components that receive the `t` (translation function from `next-intl`), we must provide a custom equality function that omits `t` from the comparison, because `t` breaks memoization as it's typically re-created on each render or is otherwise not referentially stable.
+
+**Action:** Use `React.memo` with a custom `areEqual` function for `ConversationItem` and `MessageBubble` to prevent re-renders when props (excluding `t`) haven't changed.
