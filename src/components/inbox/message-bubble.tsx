@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import { cn } from "@/lib/utils";
 import type { Message, MessageReaction } from "@/types";
 import {
@@ -131,7 +131,7 @@ function MediaImage({ url, alt }: { url: string; alt: string }) {
   );
 }
 
-function MessageContent({ message, t }: { message: Message, t: ReturnType<typeof useTranslations> }) {
+const MessageContent = memo(function MessageContent({ message, t }: { message: Message, t: ReturnType<typeof useTranslations> }) {
   switch (message.content_type) {
     case "text":
       return (
@@ -268,9 +268,9 @@ function MessageContent({ message, t }: { message: Message, t: ReturnType<typeof
         </p>
       );
   }
-}
+}, (prevProps, nextProps) => prevProps.message === nextProps.message);
 
-export function MessageBubble({
+export const MessageBubble = memo(function MessageBubble({
   message,
   reply,
   reactions,
@@ -382,4 +382,12 @@ export function MessageBubble({
       )}
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.message === nextProps.message &&
+    prevProps.reply === nextProps.reply &&
+    prevProps.reactions === nextProps.reactions &&
+    prevProps.currentUserId === nextProps.currentUserId &&
+    prevProps.onToggleReaction === nextProps.onToggleReaction
+  );
+});
