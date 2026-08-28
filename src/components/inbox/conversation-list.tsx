@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CONVERSATION_SELECT,
@@ -408,7 +408,7 @@ export function ConversationList({
         ) : (
           <div className="flex flex-col">
             {filtered.map((conv) => (
-              <ConversationItem
+              <MemoizedConversationItem
                 key={conv.id}
                 conversation={conv}
                 isActive={conv.id === activeConversationId}
@@ -502,3 +502,15 @@ function ConversationItem({
     </button>
   );
 }
+
+const MemoizedConversationItem = memo(
+  ConversationItem,
+  (prevProps, nextProps) => {
+    return (
+      prevProps.conversation === nextProps.conversation &&
+      prevProps.isActive === nextProps.isActive &&
+      prevProps.onSelect === nextProps.onSelect
+      // Omit `t` from comparison as it can break memoization from next-intl
+    );
+  }
+);
