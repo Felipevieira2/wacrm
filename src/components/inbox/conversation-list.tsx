@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CONVERSATION_SELECT,
@@ -430,7 +430,10 @@ interface ConversationItemProps {
   t: ReturnType<typeof useTranslations>;
 }
 
-function ConversationItem({
+// ⚡ Bolt: Memoize ConversationItem to prevent unnecessary re-renders when parent state
+// (like search or active filter) changes. We explicitly omit the `t` function from
+// the dependency check as it changes frequently, and rely on reference equality for `conversation`.
+const ConversationItem = memo(function ConversationItem({
   conversation,
   isActive,
   onSelect,
@@ -501,4 +504,10 @@ function ConversationItem({
       </div>
     </button>
   );
-}
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.conversation === nextProps.conversation &&
+    prevProps.isActive === nextProps.isActive &&
+    prevProps.onSelect === nextProps.onSelect
+  );
+});

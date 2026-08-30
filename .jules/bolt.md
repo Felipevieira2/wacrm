@@ -1,0 +1,3 @@
+## 2024-08-30 - Memoization in next-intl contexts
+**Learning:** When using `React.memo` on components that receive the `t` translation function (from `next-intl`), the `t` function causes unnecessary re-renders because its reference is not stable across renders in Next.js apps using server/client translation contexts.
+**Action:** Always provide a custom equality function for `React.memo` that explicitly omits the `t` function from the comparison or handles it appropriately, and rely on reference equality for primary data objects (e.g. `conversation`, `item`).
