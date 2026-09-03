@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CONVERSATION_SELECT,
@@ -430,7 +430,10 @@ interface ConversationItemProps {
   t: ReturnType<typeof useTranslations>;
 }
 
-function ConversationItem({
+// ⚡ Bolt: Memoize ConversationItem to prevent re-renders when list changes
+// The 't' function (next-intl) breaks memoization on every render if included
+// We explicitly omit 't' from the dependency array, relying on reference equality for data
+const ConversationItem = memo(function ConversationItem({
   conversation,
   isActive,
   onSelect,
@@ -501,4 +504,10 @@ function ConversationItem({
       </div>
     </button>
   );
-}
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.isActive === nextProps.isActive &&
+    prevProps.conversation === nextProps.conversation &&
+    prevProps.onSelect === nextProps.onSelect
+  );
+});

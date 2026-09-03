@@ -1,0 +1,3 @@
+## 2024-03-24 - React.memo with next-intl translation function
+**Learning:** Passing the `t` translation function (from `next-intl`) as a prop to child components breaks React.memo's default shallow comparison. The `t` function might lose referential equality across renders in some Next.js / React server-client hydration scenarios, causing unnecessary re-renders of list items.
+**Action:** When memoizing components that receive `t`, implement a custom equality function that explicitly checks data props (by reference) and deliberately ignores the `t` function. *Note: this relies on the assumption that locale changes trigger full reloads rather than purely client-side re-renders, which is standard for this architecture.*
