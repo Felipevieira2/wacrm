@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CONVERSATION_SELECT,
@@ -408,7 +408,7 @@ export function ConversationList({
         ) : (
           <div className="flex flex-col">
             {filtered.map((conv) => (
-              <ConversationItem
+              <MemoizedConversationItem
                 key={conv.id}
                 conversation={conv}
                 isActive={conv.id === activeConversationId}
@@ -502,3 +502,21 @@ function ConversationItem({
     </button>
   );
 }
+
+/**
+ * ⚡ Bolt: Performance Optimization
+ * Wrap ConversationItem in React.memo to prevent O(n) re-renders
+ * across the entire list when only one item's `isActive` state changes
+ * or when the parent `ConversationList` re-renders for other reasons.
+ * We explicitly omit `t` (translation function) from the equality check
+ * because next-intl's `t` often breaks referential equality checks.
+ * Expected impact: Drastically reduces main thread blocking during typing
+ * or realtime events in a long conversation list.
+ */
+const MemoizedConversationItem = memo(ConversationItem, (prev, next) => {
+  return (
+    prev.conversation === next.conversation &&
+    prev.isActive === next.isActive &&
+    prev.onSelect === next.onSelect
+  );
+});
