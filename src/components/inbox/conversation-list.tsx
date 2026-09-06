@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CONVERSATION_SELECT,
@@ -430,7 +430,9 @@ interface ConversationItemProps {
   t: ReturnType<typeof useTranslations>;
 }
 
-function ConversationItem({
+// ⚡ Bolt: Wrapped in React.memo to prevent unnecessary re-renders of list items.
+// We use a custom equality function below to ignore the 't' prop identity changes.
+const ConversationItem = memo(function ConversationItem({
   conversation,
   isActive,
   onSelect,
@@ -501,4 +503,12 @@ function ConversationItem({
       </div>
     </button>
   );
-}
+}, (prevProps, nextProps) => {
+  // ⚡ Bolt: Custom equality check. We omit the 't' function from next-intl
+  // because its identity changes, which would break memoization.
+  return (
+    prevProps.conversation === nextProps.conversation &&
+    prevProps.isActive === nextProps.isActive &&
+    prevProps.onSelect === nextProps.onSelect
+  );
+});
