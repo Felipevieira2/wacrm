@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CONVERSATION_SELECT,
@@ -430,12 +430,12 @@ interface ConversationItemProps {
   t: ReturnType<typeof useTranslations>;
 }
 
-function ConversationItem({
+const ConversationItemComponent = ({
   conversation,
   isActive,
   onSelect,
   t,
-}: ConversationItemProps) {
+}: ConversationItemProps) => {
   const contact = conversation.contact;
   const displayName = contact?.name || contact?.phone || t("unknown");
   const initials = displayName.charAt(0).toUpperCase();
@@ -502,3 +502,14 @@ function ConversationItem({
     </button>
   );
 }
+
+// Optimize re-renders by memoizing the item component
+// Note: We intentionally omit 't' from the dependency check as it changes identity
+// across renders but its output is stable for the same keys.
+const ConversationItem = memo(
+  ConversationItemComponent,
+  (prev, next) =>
+    prev.conversation === next.conversation &&
+    prev.isActive === next.isActive &&
+    prev.onSelect === next.onSelect
+);
