@@ -1,0 +1,3 @@
+## 2023-11-17 - React.memo with next-intl translation function
+**Learning:** When passing `t` (from `next-intl`'s `useTranslations`) as a prop to components wrapped in `React.memo`, the default shallow comparison will break memoization and cause unnecessary re-renders. This is because `next-intl` recreates the `t` function on renders.
+**Action:** When using `React.memo` on list items or expensive components that receive `t`, always provide a custom equality function. In this function, explicitly omit `t` and rely on reference equality for the core data props to preserve memoization without deep comparison performance hits.

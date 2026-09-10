@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CONVERSATION_SELECT,
@@ -430,7 +430,7 @@ interface ConversationItemProps {
   t: ReturnType<typeof useTranslations>;
 }
 
-function ConversationItem({
+const ConversationItem = React.memo(function ConversationItem({
   conversation,
   isActive,
   onSelect,
@@ -501,4 +501,14 @@ function ConversationItem({
       </div>
     </button>
   );
-}
+}, (prevProps, nextProps) => {
+  // Performance optimization: prevent unnecessary re-renders of the list items.
+  // We use reference equality for the `conversation` object to avoid brittle deep comparisons.
+  // The `t` translation function (from next-intl) is explicitly omitted from comparison
+  // because it breaks memoization as it gets recreated.
+  return (
+    prevProps.conversation === nextProps.conversation &&
+    prevProps.isActive === nextProps.isActive &&
+    prevProps.onSelect === nextProps.onSelect
+  );
+});
