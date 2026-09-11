@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import type { Message, MessageReaction } from "@/types";
 import {
@@ -270,7 +270,7 @@ function MessageContent({ message, t }: { message: Message, t: ReturnType<typeof
   }
 }
 
-export function MessageBubble({
+export const MessageBubble = React.memo(function MessageBubble({
   message,
   reply,
   reactions,
@@ -382,4 +382,11 @@ export function MessageBubble({
       )}
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.message === nextProps.message &&
+    prevProps.reply === nextProps.reply &&
+    prevProps.reactions === nextProps.reactions &&
+    prevProps.currentUserId === nextProps.currentUserId
+  );
+});
