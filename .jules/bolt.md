@@ -1,0 +1,3 @@
+## 2024-05-24 - [React.memo Custom Equality function with translations and inline handlers]
+**Learning:** The project uses `next-intl` translation functions (`t`). When passing `t` directly to memoized components, explicit custom equality checks that omit `t` prevent unnecessary re-renders. Additionally, inline functions like `onToggleReaction` passed to memoized components can break memoization, so they should be omitted from the custom equality function.
+**Action:** When writing custom equality functions for `React.memo`, explicitly omit `t` and inline functions to prevent brittle memoization, while strictly checking the necessary properties (e.g. data objects) using reference equality.
