@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CONVERSATION_SELECT,
@@ -430,7 +430,7 @@ interface ConversationItemProps {
   t: ReturnType<typeof useTranslations>;
 }
 
-function ConversationItem({
+const ConversationItem = memo(function ConversationItem({
   conversation,
   isActive,
   onSelect,
@@ -501,4 +501,13 @@ function ConversationItem({
       </div>
     </button>
   );
-}
+}, (prevProps, nextProps) => {
+  // ⚡ Bolt: Custom equality function to prevent unnecessary re-renders when list updates.
+  // We explicitly omit 't' (translation function) as its reference might change,
+  // breaking memoization, while localization changes typically trigger full re-mounts anyway.
+  return (
+    prevProps.conversation === nextProps.conversation &&
+    prevProps.isActive === nextProps.isActive &&
+    prevProps.onSelect === nextProps.onSelect
+  );
+});
