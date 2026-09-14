@@ -1,0 +1,3 @@
+## 2024-09-14 - React.memo with Translation Functions
+**Learning:** When using `React.memo` on components that receive a translation function `t` (e.g., from `next-intl`), memoization can become brittle if `t` is included in the comparison or if a shallow compare is used, as `t` might referentially change on re-renders higher up the tree. However, because localization changes (like language switching) typically trigger a full app re-mount, it is safe to omit `t` from the equality check.
+**Action:** Write a custom equality function for `React.memo` that explicitly omits `t` and relies on reference equality for data objects (e.g., `prevProps.conversation === nextProps.conversation`). Always add an in-code comment explaining why omitting `t` is safe in this context.
