@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CONVERSATION_SELECT,
@@ -430,7 +430,7 @@ interface ConversationItemProps {
   t: ReturnType<typeof useTranslations>;
 }
 
-function ConversationItem({
+const ConversationItem = memo(function ConversationItem({
   conversation,
   isActive,
   onSelect,
@@ -501,4 +501,14 @@ function ConversationItem({
       </div>
     </button>
   );
-}
+}, (prevProps, nextProps) => {
+  // We use reference equality for the conversation data object and the onSelect function
+  // to avoid deep equality checks while properly managing re-renders.
+  // The 't' translation function is explicitly omitted from the comparison to prevent memoization breakage.
+  // This is safe because localization changes typically trigger full app re-mounts.
+  return (
+    prevProps.conversation === nextProps.conversation &&
+    prevProps.isActive === nextProps.isActive &&
+    prevProps.onSelect === nextProps.onSelect
+  );
+});
