@@ -112,7 +112,6 @@ export async function POST(request: Request) {
       }
       return NextResponse.json({ success: true })
     }
-    console.log(payload)
     // Check for Calls
     if (payload.event === 'call' || payload.EventType === 'call') {
       const callData = event?.Data?.Content?.[0] || event

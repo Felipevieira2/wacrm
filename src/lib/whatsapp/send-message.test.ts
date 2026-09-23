@@ -145,7 +145,7 @@ describe('sendMessageToConversation — param validation (pre-DB)', () => {
         contentText: 'a'.repeat(2000),
       })
     ).rejects.toThrow('reached DB');
-    expect(spy).toHaveBeenCalledWith('conversations');
+    expect(spy).toHaveBeenCalledWith('uazapi_config');
   });
 });
 
