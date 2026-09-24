@@ -1,0 +1,14 @@
+
+> wacrm@0.8.0 dev /app
+> next dev
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+- Environments: .env.local
+✓ Ready in 541ms
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+○ Compiling / ...
+ GET / 307 in 4.1s (next.js: 3.5s, proxy.ts: 171ms, application-code: 445ms)
+ GET /login 200 in 1917ms (next.js: 1629ms, proxy.ts: 7ms, application-code: 281ms)
