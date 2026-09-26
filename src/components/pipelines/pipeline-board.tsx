@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -186,7 +186,8 @@ export function PipelineBoard({
   );
 }
 
-function StageColumn({
+// ⚡ Bolt: wrap StageColumn in memo to prevent unrelated columns re-rendering on drag
+const StageColumn = React.memo(function StageColumn({
   stage,
   deals,
   totalValue,
@@ -264,9 +265,10 @@ function StageColumn({
       </Button>
     </div>
   );
-}
+});
 
-function DraggableDealCard({
+// ⚡ Bolt: wrap DraggableDealCard in memo to prevent all cards re-rendering on drag
+const DraggableDealCard = React.memo(function DraggableDealCard({
   deal,
   stage,
   onEdit,
@@ -289,4 +291,4 @@ function DraggableDealCard({
       <DealCard deal={deal} stage={stage} onEdit={onEdit} />
     </div>
   );
-}
+});
