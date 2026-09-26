@@ -3,6 +3,7 @@
 import type { Deal, PipelineStage } from "@/types";
 import { Calendar, Check, X } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
+import React from "react";
 import { useTranslations } from "next-intl";
 
 interface DealCardProps {
@@ -26,7 +27,8 @@ function initials(name?: string, fallback?: string) {
   return source.charAt(0).toUpperCase();
 }
 
-export function DealCard({ deal, stage, onEdit, isOverlay }: DealCardProps) {
+// ⚡ Bolt: memoize DealCard to prevent expensive re-renders when parent changes but props remain stable
+export const DealCard = React.memo(function DealCard({ deal, stage, onEdit, isOverlay }: DealCardProps) {
   const t = useTranslations("Pipelines.card");
   const contactLabel = deal.contact?.name || deal.contact?.phone || t("noContact");
   const assigneeLabel = deal.assignee?.full_name || null;
@@ -104,4 +106,4 @@ export function DealCard({ deal, stage, onEdit, isOverlay }: DealCardProps) {
       )}
     </button>
   );
-}
+});
