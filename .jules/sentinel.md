@@ -1,0 +1,4 @@
+## 2025-02-27 - PostgREST Filter Injection Vulnerability
+**Vulnerability:** User input passed to `.or()` filters (e.g., `query.or(\`name.ilike.*${search}*,phone.ilike.*${search}*\`)`) without proper PostgREST escaping allowed attackers to break out of the string using commas and inject arbitrary filtering conditions (e.g. `),email.eq.admin@admin.com,name.ilike("*`).
+**Learning:** `sanitizeSearch` only removed some characters but left commas. Since Supabase JS passes raw strings directly into PostgREST `.or()` parameters, any injected commas are interpreted as an `OR` condition, meaning attackers could bypass tenant boundaries if they appended `or=(...tenant_id.eq.xyz)`.
+**Prevention:** Always escape user input when passing into raw PostgREST string queries like `.or()`. Do this by replacing double quotes with `""` and wrapping the entire search term in `""`: `query.or(\`name.ilike."*%{safeSearch}%*"\`)`.
