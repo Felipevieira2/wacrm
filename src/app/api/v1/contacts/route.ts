@@ -56,7 +56,8 @@ export async function GET(request: Request) {
       .eq('account_id', ctx.accountId);
 
     if (search) {
-      query = query.or(`name.ilike.*${search}*,phone.ilike.*${search}*`);
+      const safeSearch = search.replace(/"/g, '""');
+      query = query.or(`name.ilike."*${safeSearch}*",phone.ilike."*${safeSearch}*"`);
     }
 
     if (tag) {
