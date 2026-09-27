@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CONVERSATION_SELECT,
@@ -408,7 +408,7 @@ export function ConversationList({
         ) : (
           <div className="flex flex-col">
             {filtered.map((conv) => (
-              <ConversationItem
+              <MemoizedConversationItem
                 key={conv.id}
                 conversation={conv}
                 isActive={conv.id === activeConversationId}
@@ -430,12 +430,12 @@ interface ConversationItemProps {
   t: ReturnType<typeof useTranslations>;
 }
 
-function ConversationItem({
+const ConversationItemComponent = ({
   conversation,
   isActive,
   onSelect,
   t,
-}: ConversationItemProps) {
+}: ConversationItemProps) => {
   const contact = conversation.contact;
   const displayName = contact?.name || contact?.phone || t("unknown");
   const initials = displayName.charAt(0).toUpperCase();
@@ -501,4 +501,17 @@ function ConversationItem({
       </div>
     </button>
   );
-}
+};
+
+export const MemoizedConversationItem = memo(
+  ConversationItemComponent,
+  (prevProps, nextProps) => {
+    // Omit 't' from comparison as translation function references change on re-render,
+    // but localization changes trigger full app re-mounts anyway.
+    return (
+      prevProps.conversation === nextProps.conversation &&
+      prevProps.isActive === nextProps.isActive &&
+      prevProps.onSelect === nextProps.onSelect
+    );
+  }
+);
