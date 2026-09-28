@@ -1,0 +1,4 @@
+## 2024-05-25 - [PostgREST Filter Injection in `.or()` Clauses]
+**Vulnerability:** PostgREST filter injection vulnerability via `.or()` clauses in the `contacts/page.tsx` file.
+**Learning:** Supabase / PostgREST parses string inputs passed to `.or()` filters using special characters (commas for OR conditions, parentheses for groupings). Interpolating unsanitized user search terms directly into a `.or()` string (e.g., `query.or(\`name.ilike.%${term}%\`)`) allows attackers to inject arbitrary query conditions if they include commas or parentheses in their search input.
+**Prevention:** Always escape double quotes by replacing `"` with `""` and wrap the interpolated string value in double quotes within the PostgREST string (e.g., `const safeSearch = \`"%${term.replace(/"/g, '""')}%"\`; query.or(\`name.ilike.${safeSearch}\`)`).

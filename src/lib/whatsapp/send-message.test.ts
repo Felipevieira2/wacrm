@@ -132,7 +132,7 @@ describe('sendMessageToConversation — param validation (pre-DB)', () => {
 
   it('allows a long "caption" on audio (audio carries none) — so it reaches the DB', async () => {
     // Audio is exempt from the caption cap, so validation passes and we
-    // proceed to the conversation lookup — proven by the stub throwing.
+    // proceed to the Uazapi check (and then conversation lookup) — proven by the stub throwing.
     const spy = vi.fn(() => {
       throw new Error('reached DB');
     });
@@ -145,7 +145,7 @@ describe('sendMessageToConversation — param validation (pre-DB)', () => {
         contentText: 'a'.repeat(2000),
       })
     ).rejects.toThrow('reached DB');
-    expect(spy).toHaveBeenCalledWith('conversations');
+    expect(spy).toHaveBeenCalledWith('uazapi_config');
   });
 });
 
