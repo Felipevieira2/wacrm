@@ -56,7 +56,9 @@ export async function GET(request: Request) {
       .eq('account_id', ctx.accountId);
 
     if (search) {
-      query = query.or(`name.ilike.*${search}*,phone.ilike.*${search}*`);
+      // Prevent PostgREST filter injection by escaping double quotes and wrapping the interpolated value in double quotes.
+      const safeSearch = search.replace(/"/g, '""');
+      query = query.or(`name.ilike."*${safeSearch}*",phone.ilike."*${safeSearch}*"`);
     }
 
     if (tag) {
