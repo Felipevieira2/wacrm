@@ -161,7 +161,10 @@ export default function ContactsPage() {
         .range(from, to);
 
       if (term) {
-        const like = `%${term}%`;
+        // Sanitize PostgREST filter inputs: escape quotes and wrap in quotes
+        // to prevent injection if the search term contains commas, parentheses, etc.
+        const escapedTerm = term.replace(/"/g, '""');
+        const like = `"%${escapedTerm}%"`;
         query = query.or(`name.ilike.${like},phone.ilike.${like},email.ilike.${like}`);
       }
 
