@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CONVERSATION_SELECT,
@@ -430,7 +430,7 @@ interface ConversationItemProps {
   t: ReturnType<typeof useTranslations>;
 }
 
-function ConversationItem({
+const ConversationItem = memo(function ConversationItem({
   conversation,
   isActive,
   onSelect,
@@ -501,4 +501,11 @@ function ConversationItem({
       </div>
     </button>
   );
-}
+}, (prev, next) => {
+  // It is safe to omit 't' from the comparison because localization changes typically trigger full app re-mounts.
+  return (
+    prev.conversation === next.conversation &&
+    prev.isActive === next.isActive &&
+    prev.onSelect === next.onSelect
+  );
+});
