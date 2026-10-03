@@ -1,0 +1,4 @@
+## 2024-05-30 - Fix PostgREST filter injection in `contacts` list and page queries
+**Vulnerability:** PostgREST `.or()` methods were directly interpolating user input strings (`term` and `search`) into the filter string without escaping double quotes or wrapping the interpolated values in double quotes. This allowed users to inject arbitrary PostgREST filter conditions or break the query syntax.
+**Learning:** PostgREST filters are parsed securely when using the builder methods (like `.eq('name', val)`), but the `.or()` method takes a raw string, meaning any interpolated values must be manually escaped by replacing `"` with `""` and wrapping the entire string value in double quotes (`"like-string"`). The `sanitizeSearch` function didn't remove all potentially malicious characters (e.g. `(`, `)`, `,`).
+**Prevention:** Always escape double quotes and wrap user input in double quotes when interpolating it into a `.or()` string expression in Supabase/PostgREST.
