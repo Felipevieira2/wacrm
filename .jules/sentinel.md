@@ -1,0 +1,4 @@
+## 2024-05-24 - [PostgREST Filter Injection in Supabase .or() Queries]
+**Vulnerability:** User input passed to Supabase `.or()` queries was not properly escaped or wrapped in double quotes. This allowed PostgREST filter injection where a user could break out of the intended query logic by including characters like `,`, `(`, or `)`.
+**Learning:** PostgREST parses string arguments passed to `.or()`. If user input is directly concatenated without double quotes, attackers can inject arbitrary filter conditions. Escaping double quotes (e.g. `replace(/"/g, '""')`) and enclosing the interpolated strings in double quotes prevents this.
+**Prevention:** Always escape double quotes and wrap user input in double quotes when dynamically building PostgREST `.or()` strings. Do not rely solely on input trimming.
