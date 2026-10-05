@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CONVERSATION_SELECT,
@@ -430,7 +430,7 @@ interface ConversationItemProps {
   t: ReturnType<typeof useTranslations>;
 }
 
-function ConversationItem({
+const ConversationItem = memo(function ConversationItem({
   conversation,
   isActive,
   onSelect,
@@ -501,4 +501,18 @@ function ConversationItem({
       </div>
     </button>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom equality function omitting `t` (translation function) from shallow compare.
+  // Localization changes trigger a full re-mount of the app, so we can safely ignore `t`.
+  const prevKeys = Object.keys(prevProps) as (keyof ConversationItemProps)[];
+  const nextKeys = Object.keys(nextProps) as (keyof ConversationItemProps)[];
+
+  if (prevKeys.length !== nextKeys.length) return false;
+
+  for (const key of prevKeys) {
+    if (key === 't') continue;
+    if (prevProps[key] !== nextProps[key]) return false;
+  }
+
+  return true;
+});
