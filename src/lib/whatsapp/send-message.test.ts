@@ -133,7 +133,16 @@ describe('sendMessageToConversation — param validation (pre-DB)', () => {
   it('allows a long "caption" on audio (audio carries none) — so it reaches the DB', async () => {
     // Audio is exempt from the caption cap, so validation passes and we
     // proceed to the conversation lookup — proven by the stub throwing.
-    const spy = vi.fn(() => {
+    const spy = vi.fn((table) => {
+      if (table === 'uazapi_config') {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({ data: null }),
+            }),
+          }),
+        };
+      }
       throw new Error('reached DB');
     });
     const db = { from: spy } as unknown as SupabaseClient;
